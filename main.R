@@ -100,8 +100,12 @@ cvFit <- glmnet::cv.glmnet(
 bestLambda <- cvFit$lambda.min
 beta <- as.numeric(coef(cvFit, s = bestLambda))
 support <- which(beta != 0)
+covariateRef <- sparseData$covariateRef
+covariateMap <- sparseData$covariateMap
 saveRDS(list(
   fitObject = cvFit,
   lambda = bestLambda,
-  support = support),
+  support = support,
+  covariateMap = covariateMap,
+  covariateRef = covariateRef),
   file = "pretrainedLungCancer.rds")
