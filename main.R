@@ -91,6 +91,7 @@ cvFit <- glmnet::cv.glmnet(
   x = X,
   y = y,
   family = "binomial",
+  type.measure = "auc",
   alpha = 1,
   nfolds = 5,
   trace.it = 1,
@@ -108,4 +109,4 @@ saveRDS(list(
   support = support,
   covariateMap = covariateMap,
   covariateRef = covariateRef),
-  file = "pretrainedLungCancer.rds")
+  file = "pretrainedLungCancer2.rds")
