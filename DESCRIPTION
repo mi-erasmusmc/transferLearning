@@ -1,0 +1,21 @@
+Package: TransferLearning
+Title: Reproducible Patient-Level Transfer Learning Experiments
+Version: 0.1.0
+Authors@R: person("Egill", "Fridgeirsson", email = "e.fridgeirsson@erasmusmc.nl", role = c("aut", "cre"))
+Description: Runs paired learning-curve experiments across observational databases
+    using PatientLevelPrediction and Cyclops. Stores source preprocessing, matches
+    coefficients by semantic covariate identifiers, and performs fold-specific
+    preprocessing and tuning for transfer and target-only models.
+License: Apache License (>= 2)
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: Andromeda, Cyclops, PatientLevelPrediction, FeatureExtraction,
+    CohortGenerator, ParallelLogger,
+    dplyr, digest, ggplot2, pROC, rlang, stats, utils
+Suggests: DatabaseConnector, testthat (>= 3.0.0), knitr, rmarkdown, roxygen2, covr, duckdb, DBI,
+    PhenotypeLibrary, CirceR, jsonlite
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+URL: https://github.com/mi-erasmusmc/transferLearning
+BugReports: https://github.com/mi-erasmusmc/transferLearning/issues
+Config/roxygen2/version: 8.0.0
