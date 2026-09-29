@@ -4,6 +4,7 @@
 # Exercise the public fitting path rather than recognizing a version or argument.
 # No persistence check: JSON numerical precision is a separate unresolved issue.
 checkPlpBackend <- function() {
+	ParallelLogger::logInfo("Checking PLP backend with synthetic data (no database access)")
 	tryCatch({
 		n <- 120L
 		x1 <- rep(c(0, 0, 1, 1), length.out = n)
@@ -34,20 +35,24 @@ checkPlpBackend <- function() {
 		settings <- list(threads = 1L, learningCurve = list(seed = 42L))
 		fit <- fitVariance(input$data, input$population[seq_len(n), ], 1e-8, settings, source)
 		coefficients <- fit$model$coefficients
-		actual <- coefficients$betas[match(c("10", "20", "30"), coefficients$covariateIds)]
-		if (!isTRUE(all.equal(actual, c(1, -2, .7), tolerance = 1e-7))) {
-			stop("Source coefficients were not retained by covariate ID")
+		actual <- coefficients$betas[match(c("10", "20"), coefficients$covariateIds)]
+		if (!isTRUE(all.equal(actual, c(1, -2), tolerance = 1e-7))) {
+			stop("Overlapping source coefficients were not retained by covariate ID")
+		}
+		if ("30" %in% coefficients$covariateIds || !identical(fit$transferDetails$droppedSourceIds, "30")) {
+			stop("Source-only covariate was not dropped from the target fit")
 		}
 		p <- predictValues(fit, input$data, input$population[n + 1:2, ])
-		if (!isTRUE(all.equal(unname(diff(stats::qlogis(p))), 1.4, tolerance = 1e-7))) {
-			stop("Source-only covariate did not contribute at prediction time")
+		if (!isTRUE(all.equal(unname(diff(stats::qlogis(p))), 0, tolerance = 1e-7))) {
+			stop("Dropped source-only covariate affected predictions")
 		}
 		if (!isTRUE(all.equal(dplyr::collect(data$covariates), covariates, check.attributes = FALSE))) {
 			stop("PLP changed the caller's covariates")
 		}
+		ParallelLogger::logInfo("PLP backend synthetic check passed")
 		invisible(TRUE)
 	}, error = function(e) {
 		stop("PLP backend behavioral check failed: ", conditionMessage(e),
-			". Install the reviewed priorCoefs correctness build; see extras/UpstreamRequirements.md", call. = FALSE)
+			". Use PLP develop with the merged priorCoefs fixes; see extras/UpstreamRequirements.md", call. = FALSE)
 	})
 }

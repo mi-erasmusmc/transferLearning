@@ -48,9 +48,9 @@ test_that("source units and absent features are mapped by semantic IDs", {
 	source <- list(model = list(coefficients = data.frame(covariateIds = c("30", "(Intercept)", "20"), betas = c(3, -2, 4))),
 		preprocessing = list(tidyCovariates = list(normFactors = data.frame(covariateId = c(20, 30), maxValue = c(10, 7)))))
 	converted <- sourceInTargetUnits(source, data)
-	expect_equal(converted$coefficients$betas, c(3, 2))
-	expect_equal(converted$fallbackIds, "30")
-	expect_equal(attr(converted$covariateData, "metaData")$tidyCovariateDataSettings$normFactors$maxValue, c(5, 1, 7))
+	expect_equal(converted$coefficients$betas, 2)
+	expect_equal(converted$droppedSourceIds, "30")
+	expect_equal(attr(converted$covariateData, "metaData")$tidyCovariateDataSettings$normFactors$maxValue, c(5, 1))
 	source$preprocessing <- NULL
 	expect_error(sourceInTargetUnits(source, data), "Missing source normalization")
 })

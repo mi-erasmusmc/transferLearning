@@ -1,3 +1,9 @@
+# Validation history
+
+The earlier sections below describe superseded runner/backend builds, including
+the old source-only retention contract. The merged-develop validation at the end
+is the current contract. Historical patch references are not installation steps.
+
 # Validation of the runner with the revised PLP correctness build
 
 Backend: the uncommitted worktree
@@ -108,3 +114,26 @@ snapshot label. End-to-end runner tests also use registries without snapshot IDs
 Full `R CMD check --no-manual` passed: 0 errors, 0 warnings, 0 notes (4m 45s).
 Logs: `/tmp/transfer-cohort-table-tests.log`, `/tmp/transfer-cohort-table-check.log`,
 `/tmp/transfer-pilot-input-check.log`. The updated package installed successfully.
+
+## Current: merged PLP develop and target-overlap policy
+
+Backend: an unmodified checkout of PLP develop commit
+`f2cef128f1bfdf69295f2d5ab0eb911d5103a93a`. CI now pins that commit and no longer
+applies the old patch. Source coefficients absent from each prepared target
+training fold are dropped. The final refit determines overlap on its full
+training sample. This supersedes the retention contract in historical sections.
+
+Coverage includes native PLP dropping, runner no-overlap equivalence to target-only,
+no prediction effect from a dropped feature, fold-specific dropping and conversion,
+final-refit inclusion of a previously absent feature, and unchanged raw covariates
+and validation assignments. Existing candidate-variance and held-out tuning checks
+remain active. Dropped IDs persist with fold tuning rows and final-fit metadata.
+
+Both packages installed into the local test library and the standalone synthetic
+backend preflight passed. No production database was accessed. Windows execution
+and the full upstream PLP suite were not run locally.
+
+Full runner `R CMD check --no-manual` passed against merged develop with
+**0 errors, 0 warnings, 0 notes** (5m 19s), including installed-package tests and
+vignette rebuilding. Logs: `/tmp/transfer-adopt-develop-check.log` and
+`/tmp/transfer-merged-preflight.log`.

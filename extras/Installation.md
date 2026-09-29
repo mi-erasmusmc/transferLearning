@@ -1,7 +1,7 @@
 # Install and run on Windows
 
 Assume you have already installed **PatientLevelPrediction develop after the
-required correctness fixes merge**. Use a fresh R/RStudio session, with your
+required correctness fixes have merged**. Use a fresh R/RStudio session, with your
 working directory set to the `transferLearning` clone on `plp-cyclops-pilot`.
 
 ```r

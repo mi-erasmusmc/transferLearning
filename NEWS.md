@@ -16,3 +16,7 @@
 * Simplify pilot inputs to source/target names and cohort tables, with optional
   snapshot labels. Reuse existing tables and generate missing ones; include data
   locations in extraction-cache and experiment-manifest fingerprints.
+* Adopt merged PLP develop behavior: drop source coefficients absent from each
+  target training fold, record dropped IDs in tuning artifacts, and determine
+  overlap again for the final refit. Replace patched-base CI with pinned develop.
+* Label synthetic backend checks explicitly before database extraction.

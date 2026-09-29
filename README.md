@@ -3,7 +3,7 @@
 An R experiment runner for patient-level transfer learning across OMOP databases,
 using PatientLevelPrediction (PLP) and Cyclops. This implementation is a proof of
 concept and requires the [PLP correctness fixes](extras/UpstreamRequirements.md).
-Installation assumes you have installed PLP's develop branch after those fixes merge.
+Installation assumes you have installed PLP's develop branch with those merged fixes.
 
 ## Installation and execution
 
@@ -55,8 +55,8 @@ also be supplied through `runExperiment(..., preparedData = ...)`; see its help.
   refit on the complete sampled training set.
 - Multiplicative normalization only: `minFraction = 0`, `removeRedundancy = FALSE`.
   Source slopes are converted as `betaTarget = betaSource * maxTarget / maxSource`,
-  matching semantic covariate IDs. A source feature absent from target training
-  retains its source scale and slope. Missing source scales fail explicitly.
+  matching semantic covariate IDs. Source coefficients absent from each target training fold are dropped, matching
+  PLP develop. Missing source scales for overlapping predictors fail explicitly.
 - Standard OMOP features (age, gender, conditions, drugs, procedures, observations)
   versus frozen phenotype cohorts plus demographics. Defaults use days -365 to -1.
   Phenotype ascertainment must be reviewed for prediction-time availability:

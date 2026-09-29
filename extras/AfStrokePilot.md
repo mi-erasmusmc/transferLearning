@@ -55,7 +55,7 @@ The frozen original definitions remain available for a later study-specific revi
 
 ## Run sequence
 
-1. Install PLP develop after the correctness fixes merge, then install this
+1. Install PLP develop with the merged correctness fixes, then install this
    package using [Installation.md](Installation.md). The runner automatically
    checks backend behavior and records implementation fingerprints.
 2. Copy `inst/examples/afStrokePilot.R` into the study directory. Fill in the
@@ -109,3 +109,9 @@ Known PLP model-JSON precision loss remains unresolved; avoid relying on exact
 resumed-versus-uninterrupted equality. See `UpstreamRequirements.md`.
 
 No production database extraction or model fitting has been run locally.
+
+The priorCoefs comparator drops source coefficients absent from each target
+training fold, matching PLP develop. Overlap is recalculated for the final refit.
+Frozen-source/recalibration comparators keep the original source feature set.
+Dropped IDs are saved per tuning fold and for the final fit; see
+[UpstreamRequirements.md](UpstreamRequirements.md).

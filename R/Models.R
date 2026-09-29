@@ -21,24 +21,22 @@ subsetTrain <- function(data, population, folds = rep(1L, nrow(population))) {
 sourceInTargetUnits <- function(source, targetCovariates) {
 	coefficients <- source$model$coefficients
 	coefficients <- coefficients[coefficients$covariateIds != "(Intercept)" & coefficients$betas != 0, ]
-	sourceNorm <- source$preprocessing$tidyCovariates$normFactors
-	meta <- attr(targetCovariates, "metaData")
-	targetNorm <- meta$tidyCovariateDataSettings$normFactors
+	# Presence is determined only from this preprocessed training fold, not from
+	# covariateRef or validation data. PLP develop drops non-overlapping sources.
+	present <- dplyr::collect(dplyr::distinct(targetCovariates$covariates, .data$covariateId))$covariateId
+	keep <- as.character(coefficients$covariateIds) %in% as.character(present)
+	dropped <- as.character(coefficients$covariateIds[!keep])
+	coefficients <- coefficients[keep, , drop = FALSE]
 	ids <- as.character(coefficients$covariateIds)
+	sourceNorm <- source$preprocessing$tidyCovariates$normFactors
+	targetNorm <- attr(targetCovariates, "metaData")$tidyCovariateDataSettings$normFactors
 	scaleSource <- sourceNorm$maxValue[match(ids, as.character(sourceNorm$covariateId))]
 	if (length(scaleSource) != length(ids) || any(!is.finite(scaleSource) | scaleSource <= 0)) stop("Missing source normalization factors")
-	missing <- !ids %in% as.character(targetNorm$covariateId)
-	if (any(missing)) {
-		fallback <- sourceNorm[match(ids[missing], as.character(sourceNorm$covariateId)), , drop = FALSE]
-		targetNorm <- dplyr::bind_rows(targetNorm, fallback)
-	}
 	scaleTarget <- targetNorm$maxValue[match(ids, as.character(targetNorm$covariateId))]
-	if (any(!is.finite(scaleTarget) | scaleTarget <= 0)) stop("Invalid target normalization factors")
+	if (length(scaleTarget) != length(ids) || any(!is.finite(scaleTarget) | scaleTarget <= 0)) stop("Invalid target normalization factors")
 	coefficients$betas <- coefficients$betas * scaleTarget / scaleSource
-	meta$tidyCovariateDataSettings$normFactors <- targetNorm
-	attr(targetCovariates, "metaData") <- meta
 	list(coefficients = coefficients, covariateData = targetCovariates,
-		fallbackIds = ids[missing])
+		droppedSourceIds = dropped)
 }
 
 fitVariance <- function(data, population, variance, settings, source = NULL) {
@@ -48,18 +46,18 @@ fitVariance <- function(data, population, variance, settings, source = NULL) {
 		PatientLevelPrediction::createPreprocessSettings(normalize = TRUE,
 			minFraction = 0, removeRedundancy = FALSE))
 	prior <- NULL
-	fallback <- character()
+	dropped <- character()
 	if (!is.null(source)) {
 		converted <- sourceInTargetUnits(source, train$covariateData)
-		prior <- converted$coefficients
+		prior <- if (nrow(converted$coefficients)) converted$coefficients else NULL
 		train$covariateData <- converted$covariateData
-		fallback <- converted$fallbackIds
+		dropped <- converted$droppedSourceIds
 	}
 	modelSettings <- PatientLevelPrediction::setLassoLogisticRegression(
 		variance = variance, priorCoefs = prior,
 		threads = settings$threads, seed = settings$learningCurve$seed)
 	fit <- fitPreparedVariance(train, modelSettings)
-	fit$transferDetails <- list(fallbackIds = fallback)
+	fit$transferDetails <- list(droppedSourceIds = dropped)
 	fit
 }
 
@@ -114,10 +112,12 @@ tuneModel <- function(data, population, folds, settings, source = NULL) {
 				result <- tryCatch({
 					model <- fitVariance(data, population[folds != fold, , drop = FALSE], variance, settings, source)
 					p <- predictValues(model, data, validation)
-					list(loss = logLoss(as.integer(validation$outcomeCount > 0), p), error = "")
-				}, error = function(e) list(loss = Inf, error = conditionMessage(e)))
+					list(loss = logLoss(as.integer(validation$outcomeCount > 0), p), error = "",
+						droppedSourceIds = paste(model$transferDetails$droppedSourceIds, collapse = ","))
+				}, error = function(e) list(loss = Inf, error = conditionMessage(e), droppedSourceIds = NA_character_))
 				scores <<- rbind(scores, data.frame(variance = variance, fold = fold,
-					n = nrow(validation), loss = result$loss, error = result$error))
+					n = nrow(validation), loss = result$loss, error = result$error,
+					droppedSourceIds = result$droppedSourceIds))
 			}
 		}
 	}
@@ -137,6 +137,7 @@ tuneModel <- function(data, population, folds, settings, source = NULL) {
 	}
 	model <- fitVariance(data, population, best, settings, source)
 	list(model = model, tuning = scores, selectedVariance = best,
+		transferDetails = model$transferDetails,
 		expanded = expanded, boundary = best %in% range(scores$variance))
 }
 

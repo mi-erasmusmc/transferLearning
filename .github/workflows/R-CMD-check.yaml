@@ -2,7 +2,7 @@ name: R-CMD-check
 on:
   workflow_dispatch:
   push:
-    paths: ['R/**', 'tests/**', 'DESCRIPTION', 'inst/**', 'man/**', 'vignettes/**', 'extras/PatientLevelPrediction-transfer.patch', '.github/workflows/**']
+    paths: ['R/**', 'tests/**', 'DESCRIPTION', 'inst/**', 'man/**', 'vignettes/**', '.github/workflows/**']
   pull_request:
 jobs:
   check:
@@ -16,14 +16,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: OHDSI/PatientLevelPrediction
-          ref: 1d91b7de03adb2332073420f440eeefdd2e2e837
+          ref: f2cef128f1bfdf69295f2d5ab0eb911d5103a93a
           path: upstream-plp
       - uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
-      - name: Apply reviewed priorCoefs correctness fixes
-        shell: bash
-        run: git -C upstream-plp apply ../extras/PatientLevelPrediction-transfer.patch
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: upstream-plp
@@ -32,7 +29,7 @@ jobs:
         with:
           extra-packages: any::rcmdcheck
           needs: check
-      - name: Install corrected PLP
+      - name: Install pinned PLP develop
         shell: bash
         run: R CMD INSTALL upstream-plp
       - name: Remove upstream checkout from package tree

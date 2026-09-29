@@ -32,7 +32,7 @@ test_that("prepared PLP fits use the candidate outside CV limits without changin
 			expect_equal(dplyr::collect(train$covariateData$covariates), before)
 			if (!is.null(source)) {
 				coefs <- fit$model$coefficients
-				expect_equal(coefs$betas[coefs$covariateIds == "30"], .7)
+				expect_false("30" %in% coefs$covariateIds)
 			}
 		}
 	}

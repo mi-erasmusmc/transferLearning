@@ -1,137 +1,81 @@
-# PatientLevelPrediction correctness requirements and runner-side tuning
+# PLP develop contract used by the pilot
 
-The bundled patch captures the reviewed `fix-priorcoefs-correctness` work.
-Production installation assumes PLP develop is installed after these fixes merge;
-see [installation instructions](Installation.md). The patch is retained as a
-review/CI reference, not a production installation step.
+The runner now follows merged PLP develop behavior. CI pins commit
+[`f2cef128f1bfdf69295f2d5ab0eb911d5103a93a`](https://github.com/OHDSI/PatientLevelPrediction/commit/f2cef128f1bfdf69295f2d5ab0eb911d5103a93a).
+Install a develop build containing these changes, then follow
+[Installation.md](Installation.md). No local PLP patch is applied in CI or needed
+for production installation. The earlier patch is preserved in Git history.
 
-Its base is `1d91b7de03adb2332073420f440eeefdd2e2e837`.
-[PatientLevelPrediction-transfer.patch](PatientLevelPrediction-transfer.patch)
-is a snapshot of that revised worktree's changes against HEAD, including staged
-and unstaged changes. CI applies this snapshot to the recorded base. It replaces
-the earlier `fix-priorcoefs-transfer` proposal.
+## Coefficient handling
 
-## Revised PLP scope: correctness only
+PLP matches supplied coefficients to Cyclops columns by semantic covariate ID,
+avoids changing the caller's covariates, preserves fixed source coefficients in
+CV refits, combines source slopes and fitted corrections for prediction, and
+aligns CV predictions by rowId. Native Cyclops IDs preserve large coefficient IDs.
 
-The patch fixes PLP's `priorCoefs` implementation:
-
-1. **Coefficient identity:** match supplied source coefficients to Cyclops columns
-   by semantic covariate ID, rather than assuming a positional column order.
-2. **Input isolation:** add synthetic source columns in separate storage, without
-   appending them to the caller's covariate table.
-3. **Refit state:** pass fixed and starting source coefficients into every CV
-   refit, so the source contribution is not reset or dropped.
-4. **Prediction coefficients:** combine fixed source slopes and fitted target
-   corrections by covariate ID, for both CV and final prediction.
-5. **Source-only features:** retain source covariates absent from target training,
-   while respecting explicit include/exclude covariate selection.
-6. **Patient identity:** align CV fold assignments and predictions by `rowId`.
-
-These are separate from the support/intercept indexing bug in the historical
-transferLearning glmnet scripts. No Cyclops changes are required.
-
-The revised patch does **not** add a `useCrossValidation` constructor argument,
-change PLP's public model-settings representation, add an RDS precision sidecar,
-or include the earlier prediction-resource cleanup proposal.
-
-## Why the runner can fit a candidate without a new API
-
-The runner calls the public `PatientLevelPrediction::fitPlp()` entry point with
-prepared `trainData`. Inspection of `R/Fit.R` confirms that it passes those data
-to the model fitter; it does not reconstruct the folds with a split constructor.
-In `R/CyclopsModels.R`, the lasso fitting path enables variance tuning and CV
-prediction generation only when `max(trainData$folds$index) > 1`.
-
-The runner's `fitPreparedVariance()` helper therefore makes this local list copy:
-
-```r
-fitData <- trainData
-fitData$folds <- data.frame(
-  rowId = trainData$labels$rowId,
-  index = rep(1L, nrow(trainData$labels))
-)
-fit <- PatientLevelPrediction::fitPlp(
-  fitData, modelSettings, analysisId = "transfer", analysisPath = NULL
-)
-```
-
-`modelSettings` comes from the unchanged `setLassoLogisticRegression(variance=...)`
-constructor. There is no setting injection, private fitter call, monkeypatch,
-or vendored fitting implementation. `createDefaultSplitSetting(nfold=1)` is not
-used: that constructor requires more than one fold.
-
-The all-ones table is only a fitting control for this local PLP call. The runner's
-real held-out assignments remain separately owned by `tuneModel()` and are saved
-in the experiment split artifacts. Every candidate fit is checked for:
-
-- fitted variance equal to the supplied candidate;
-- no CV prediction rows;
-- no internal CV object or hyperparameter-search results.
-
-## External validation and normalization still belong in the runner
-
-PLP's `getCV()` operates on already-preprocessed input. It cannot replace the
-runner's external loop, which must perform these steps separately for each fold:
-
-1. Copy only inner-training patients' raw covariates.
-2. Estimate normalization on that copy.
-3. Convert source slopes into those training-fold units.
-4. Fit the candidate variance through the single-fold PLP call above.
-5. Apply that fitted preprocessing and model to held-out raw covariates.
-6. Select the variance using held-out log loss.
-7. Recompute preprocessing and source conversion on the complete final training
-   sample, then refit at the selected variance through the same fitting path.
-
-PLP already stores normalization factors under
-`model$preprocessing$tidyCovariates$normFactors`. With multiplicative normalization,
-source slopes are converted as `sourceBeta * targetMax / sourceMax`, keyed by
-covariate ID. A source-only feature retains its source scale and slope. The source
-intercept is excluded; the target intercept is freely fitted. The fitted model is:
+Develop deliberately **drops source coefficients for predictors absent from target
+training**, following commit
+[`8ad78b2416`](https://github.com/OHDSI/PatientLevelPrediction/commit/8ad78b2416).
+The runner adopts this policy independently in every inner training fold and in
+the final refit. Presence comes from the prepared training covariates, not the
+covariate reference table or held-out patients. Only overlapping source slopes
+are converted into the fold's units:
 
 ```
-logit(p) = targetIntercept + sum_j xTarget[j] * (sourceBetaInTargetUnits[j] + delta[j])
+betaTarget = betaSource * maxTarget / maxSource
 ```
 
-Only target corrections `delta` are penalized. This differs from merely using
-source coefficients as a numerical starting point for ordinary target-only lasso.
+There are no fallback normalization factors for absent source predictors. If no
+source predictors overlap, the target fit is target-only. If a feature is absent
+from an inner training fold but present in the complete final training sample,
+its source coefficient can participate in the final fit. Missing or invalid
+normalization factors for an overlapping source coefficient still fail explicitly.
+The source intercept is excluded; the target intercept is freely fitted.
 
-## Behavioral readiness and backend provenance
+Dropped source IDs are recorded in each tuning row (`droppedSourceIds`, comma-
+separated; NA on a failed fit) and in the final fit's
+`transferDetails$droppedSourceIds`, retained in `tuning.rds`. This policy applies
+to `priorCoefs` adaptation. Frozen-source and recalibration comparators still
+predict with the source model and its original feature set.
 
-`validateExperiment()` runs a small deterministic synthetic fit through the same
-public path. It checks a variance below the internal search limits, correctly
-assigned source slopes, a source-only feature's prediction contribution, and an
-unchanged caller covariate table. It does not use constructor-argument presence or
-a package version as a readiness test.
+This supersedes the earlier runner contract requiring source-only features to
+contribute at prediction time. That change in feature availability is particularly
+relevant to small target training samples; results under the two contracts must
+not be treated as identical experiments. Use a new output folder for this build.
 
-The experiment manifest continues to record package versions and a fingerprint
-of the actual loaded PLP functions. Different uncommitted builds may share a
-version. The behavioral check establishes only the exercised runner contract;
-it does not replace the revised PLP regression suite or full upstream validation.
+## Runner-side tuning, without a new PLP API
 
-## JSON precision remains a separate unresolved issue
+For each variance candidate and inner fold, the runner subsets raw training data,
+estimates preprocessing on that fold, converts overlapping source coefficients,
+and calls public `fitPlp()` with a local all-ones fold table. PLP's existing
+single-fold path fits the supplied variance without internal tuning or CV
+predictions. The actual validation assignments remain separate and unchanged.
+`createDefaultSplitSetting(nfold=1)` is not used.
 
-The revised patch does not change PLP model serialization. Existing JSON output
-can round coefficients and normalization factors, so saved/reloaded models may
-produce slightly different predictions. In particular, an interrupted run that
-reloads a source model for unfinished jobs is not guaranteed to be numerically
-equivalent to an uninterrupted run using the original in-memory source model.
+The runner predicts held-out patients using the fold's preprocessing, selects
+variance by held-out log loss, and refits on the complete final training sample.
+PLP's `getCV()` does not replace this loop because it receives preprocessed data.
+Every fit checks the actual variance, fit status and absence of internal CV output.
+No new constructor argument, monkeypatch or vendored fitting implementation is used.
 
-This change does not introduce a sidecar or otherwise solve persistence precision.
-Tests distinguish exact in-memory/raw-data-cache predictions from model JSON
-round trips; the latter are not claimed to be exact. A separate persistence fix
-and its compatibility review remain necessary for exact restart equivalence.
+## Behavioral readiness and provenance
 
-## Installation and tests
+`validateExperiment()` announces a synthetic readiness check before database work.
+It exercises fixed-variance fitting below the internal search limits, coefficient
+matching for overlapping source features, dropping a source-only feature, no
+prediction contribution from that dropped feature, and unchanged caller data.
+Regression tests also exercise PLP's native drop behavior directly, no-overlap
+agreement with target-only, fold-specific dropping and final-refit inclusion.
 
-After following [Installation.md](Installation.md), run tests from the clone in
-an R environment with the development dependencies installed:
+The manifest records versions and fingerprints of loaded PLP and runner functions.
+A version string alone does not identify a develop build. The check establishes
+the exercised runner contract, not correctness of every PLP feature.
 
-```sh
-Rscript --vanilla -e 'devtools::test()'
-```
+## JSON precision is still unresolved
 
-Runner regression tests cover candidates outside internal CV bounds, no internal
-CV output, unchanged settings/covariates/validation assignments, per-fold scale
-conversion, held-out log-loss selection, final full-sample preprocessing/refitting,
-and source-only prediction effects. See [Validation.md](Validation.md) for results
-and the remaining database/full-suite validation limits.
+These changes do not change PLP model serialization. JSON can round coefficients
+and normalization factors, so an interrupted run that reloads a source model for
+unfinished jobs is not guaranteed to match an uninterrupted in-memory run exactly.
+No precision sidecar is introduced. Raw-data cache and in-memory prediction tests
+are distinct from model-JSON round-trip claims. See [Validation.md](Validation.md)
+for validation scope and history.
