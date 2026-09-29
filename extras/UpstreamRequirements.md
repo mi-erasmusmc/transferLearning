@@ -1,7 +1,9 @@
 # PatientLevelPrediction correctness requirements and runner-side tuning
 
 The bundled patch captures the reviewed `fix-priorcoefs-correctness` work.
-Use the portable [installation instructions](Installation.md) in a new environment.
+Production installation assumes PLP develop is installed after these fixes merge;
+see [installation instructions](Installation.md). The patch is retained as a
+review/CI reference, not a production installation step.
 
 Its base is `1d91b7de03adb2332073420f440eeefdd2e2e837`.
 [PatientLevelPrediction-transfer.patch](PatientLevelPrediction-transfer.patch)

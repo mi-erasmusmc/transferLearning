@@ -10,10 +10,10 @@ License: Apache License (>= 2)
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Imports: Andromeda, Cyclops, PatientLevelPrediction, FeatureExtraction,
-    CohortGenerator, ParallelLogger,
+    CohortGenerator, CirceR, DatabaseConnector, ParallelLogger,
     dplyr, digest, ggplot2, pROC, rlang, stats, utils
-Suggests: DatabaseConnector, testthat (>= 3.0.0), knitr, rmarkdown, roxygen2, covr, duckdb, DBI,
-    PhenotypeLibrary, CirceR, jsonlite
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, roxygen2, covr, duckdb, DBI,
+    PhenotypeLibrary, jsonlite
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 URL: https://github.com/mi-erasmusmc/transferLearning

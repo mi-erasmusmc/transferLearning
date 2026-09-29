@@ -53,11 +53,9 @@ The frozen original definitions remain available for a later study-specific revi
 
 ## Run sequence
 
-1. Follow [Installation.md](Installation.md) to install dependencies, the pinned
-   corrected PLP build and this package. The public
-   `validateExperiment(settings, databaseRegistry)` runs the behavioral backend
-   check; a merged upstream release is not required
-   if the exact corrected build is installed. Keep backend fingerprints.
+1. Install PLP develop after the correctness fixes merge, then install this
+   package using [Installation.md](Installation.md). The runner automatically
+   checks backend behavior and records implementation fingerprints.
 2. Copy `inst/examples/afStrokePilot.R` into the study directory. Fill in the
    source/target CDM schemas (`catalog.schema`), actual snapshot/release IDs,
    writable cohort/temp schema and output folder at the top. The example shares

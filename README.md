@@ -2,16 +2,20 @@
 
 An R experiment runner for patient-level transfer learning across OMOP databases,
 using PatientLevelPrediction (PLP) and Cyclops. This implementation is a proof of
-concept and requires the [PLP changes](extras/UpstreamRequirements.md) in this
-repository's upstream patch. Those changes are not yet published upstream.
+concept and requires the [PLP correctness fixes](extras/UpstreamRequirements.md).
+Installation assumes you have installed PLP's develop branch after those fixes merge.
 
 ## Installation and execution
 
-Clone the `plp-cyclops-pilot` branch and follow the portable
-[Windows/RStudio installation instructions](extras/Installation.md). They install dependencies,
-apply the bundled PLP correctness patch to a pinned upstream commit, install both
-packages and run a synthetic backend preflight. `R CMD INSTALL .` alone does not
-install dependencies or correct PLP.
+After cloning `plp-cyclops-pilot`, install from R with:
+
+```r
+remotes::install_local(".", dependencies = NA, upgrade = "never")
+```
+
+This installs required dependencies from `DESCRIPTION` and keeps your installed
+PLP develop build. See [Windows/RStudio setup](extras/Installation.md) for repository
+settings and running the pilot.
 The active tree contains only the new runner. The original glmnet code, models,
 and environment lockfile are preserved at the `legacy-glmnet` Git tag.
 
