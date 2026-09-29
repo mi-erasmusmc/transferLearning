@@ -84,3 +84,13 @@ These temporary paths are local evidence, not portable experiment artifacts.
 
 Logs: `/tmp/transfer-event-pilot-check.log`, `/tmp/pilot-unit.log`,
 `/tmp/pilot-installed-preflight.log`, `/tmp/transfer-event-pilot-install.log`.
+
+## Publication installation check
+
+Cloned PLP afresh from GitHub, checked out the pinned base, applied the bundled
+patch successfully and installed it and the runner into a separate temporary R
+library. The new `extras/checkBackend.R` synthetic readiness check passed against
+those installations. Existing system R dependencies were reused; installation of
+all dependencies on a bare production host and live Databricks extraction remain
+untested. The standalone pilot entrypoint also passed configuration and missing-
+input smoke checks without opening a database connection.
