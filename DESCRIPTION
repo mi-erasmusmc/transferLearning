@@ -13,7 +13,7 @@ Imports: Andromeda, Cyclops, PatientLevelPrediction, FeatureExtraction,
     CohortGenerator, CirceR, DatabaseConnector, ParallelLogger,
     dplyr, digest, ggplot2, pROC, rlang, stats, utils
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, roxygen2, covr, duckdb, DBI,
-    PhenotypeLibrary, jsonlite
+    jsonlite
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 URL: https://github.com/mi-erasmusmc/transferLearning

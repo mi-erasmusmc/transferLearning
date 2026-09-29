@@ -27,16 +27,17 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: upstream-plp
+          dependencies: NA
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
       - name: Install corrected PLP
         shell: bash
         run: R CMD INSTALL upstream-plp
       - name: Remove upstream checkout from package tree
         shell: bash
         run: rm -rf upstream-plp
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rcmdcheck
-          needs: check
       - uses: r-lib/actions/check-r-package@v2
         with:
           args: 'c("--no-manual")'

@@ -31,7 +31,9 @@ retained). Unlike the old groups' first exposure plus drug-era continuation, thi
 feature uses **all qualifying exposure starts**, with zero-day duration, so it
 means an antibiotic exposure start during days −365 through −1. No group-specific
 antibiotic predictors remain. `extras/freezePilotPhenotypes.R` rebuilds the files;
-`phenotypes.csv` lists the features. Non-antibiotic definitions are unchanged.
+`phenotypes.csv` lists the features. Rebuilding requires PhenotypeLibrary 3.37.0
+installed separately; running the package or pilot does not. Non-antibiotic
+definitions are unchanged.
 
 ## Predictor timing
 

@@ -1,4 +1,6 @@
 # Run from the repository root. Rebuilds the frozen pilot definitions.
+# Maintenance-only dependency: install PhenotypeLibrary 3.37.0 separately.
+# Running the package/pilot uses bundled definitions and does not need it.
 stopifnot(as.character(utils::packageVersion('PhenotypeLibrary')) == '3.37.0')
 x <- PhenotypeLibrary::getPlCohortDefinitionSet(1152:1215)
 # Preserve the exact recovered input alongside the derived pilot set.
