@@ -1,0 +1,10 @@
+^\.git$
+^\.github$
+^\.library$
+^\.Rproj.user$
+^.*\.Rproj$
+^extras$
+^results$
+^\.gitignore$
+^TransferLearning.*\.tar\.gz$
+^TransferLearning\.Rcheck$

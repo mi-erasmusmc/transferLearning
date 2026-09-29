@@ -2,5 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
-/renv/
-sparseDataLungCancer.rds
+
+/results/
+.library/
+TransferLearning.Rcheck/
+TransferLearning_*.tar.gz
