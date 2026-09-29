@@ -4,12 +4,14 @@
 \alias{validateExperiment}
 \title{Validate experiment requirements}
 \usage{
-validateExperiment(settings, databaseRegistry)
+validateExperiment(settings, databaseRegistry, checkBackend = FALSE)
 }
 \arguments{
 \item{settings}{Experiment settings.}
 
 \item{databaseRegistry}{Named runtime database settings. snapshotId is optional.}
+
+\item{checkBackend}{Run the optional synthetic PLP readiness check. Default FALSE.}
 }
 \value{
 A data frame describing the job grid, invisibly.

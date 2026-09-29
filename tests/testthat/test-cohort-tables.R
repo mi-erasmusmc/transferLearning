@@ -45,10 +45,11 @@ test_that("table names and data locations define credential-free cache identity"
 })
 
 test_that("snapshot labels are optional but supplied table names are validated", {
-  local_mocked_bindings(checkPlpBackend = function() invisible(TRUE))
+  local_mocked_bindings(checkPlpBackend = function() stop("explicit backend probe"))
   settings <- fixtureSettings(tempfile())
   registry <- list(source = list(), target = list())
   expect_s3_class(validateExperiment(settings, registry), "data.frame")
+  expect_error(validateExperiment(settings, registry, checkBackend = TRUE), "explicit backend probe")
   registry$source$cohortTable <- "catalog.schema.table"
   expect_error(validateExperiment(settings, registry), "unqualified table name")
   registry$source$cohortTable <- "source_cohorts"

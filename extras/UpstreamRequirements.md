@@ -60,8 +60,9 @@ No new constructor argument, monkeypatch or vendored fitting implementation is u
 
 ## Behavioral readiness and provenance
 
-`validateExperiment()` announces a synthetic readiness check before database work.
-It exercises fixed-variance fitting below the internal search limits, coefficient
+Normal validation and pilot runs do not run synthetic PLP checks. The optional
+`extras/checkBackend.R` script calls `validateExperiment(..., checkBackend = TRUE)`
+to check a backend installation explicitly. It exercises fixed-variance fitting below the internal search limits, coefficient
 matching for overlapping source features, dropping a source-only feature, no
 prediction contribution from that dropped feature, and unchanged caller data.
 Regression tests also exercise PLP's native drop behavior directly, no-overlap

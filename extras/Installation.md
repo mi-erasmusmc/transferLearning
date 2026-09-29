@@ -23,8 +23,9 @@ are not required to run the pilot. See the
 `R CMD build` creates a package archive; `R CMD INSTALL` installs a package but
 does not fetch missing dependencies. The R command above handles both dependency
 installation and package installation. No separate dependency or patch script is
-needed. The runner automatically checks required PLP behavior before running,
-since the PLP version alone does not identify its implementation.
+needed. Normal runs do not perform synthetic PLP checks. To check a new backend
+installation once, optionally run `source("extras/checkBackend.R")` from the clone.
+The runner still records backend fingerprints and checks each actual model fit.
 
 Copy `inst/examples/afStrokePilot.R` into your study directory and fill in the
 site inputs at the top: database names, CDM schemas, cohort table names, writable

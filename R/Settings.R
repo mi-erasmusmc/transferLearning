@@ -92,9 +92,10 @@ createExperimentSettings <- function(problems, pairs, featureProfiles,
 #' Validate experiment requirements
 #' @param settings Experiment settings.
 #' @param databaseRegistry Named runtime database settings. snapshotId is optional.
+#' @param checkBackend Run the optional synthetic PLP readiness check. Default FALSE.
 #' @return A data frame describing the job grid, invisibly.
 #' @export
-validateExperiment <- function(settings, databaseRegistry) {
+validateExperiment <- function(settings, databaseRegistry, checkBackend = FALSE) {
 	stopifnot(inherits(settings, "transferExperimentSettings"))
 	ids <- unique(c(as.character(settings$pairs$sourceId), as.character(settings$pairs$targetId)))
 	if (!all(ids %in% names(databaseRegistry))) stop("Missing database registry entries")
@@ -111,7 +112,7 @@ validateExperiment <- function(settings, databaseRegistry) {
 			stop("snapshotId must be a nonempty string when supplied")
 		}
 	}
-	checkPlpBackend()
+	if (isTRUE(checkBackend)) checkPlpBackend()
 	grid <- expand.grid(problemId = names(settings$problems),
 		profileId = names(settings$featureProfiles), pairIndex = seq_len(nrow(settings$pairs)),
 		repetition = seq_len(settings$learningCurve$repetitions),

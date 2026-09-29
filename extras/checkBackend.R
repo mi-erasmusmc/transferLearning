@@ -8,5 +8,5 @@ settings <- TransferLearning::createExperimentSettings(
   outputFolder = tempfile("transfer-preflight-")
 )
 invisible(TransferLearning::validateExperiment(settings,
-  list(source = list(), target = list())))
+  list(source = list(), target = list()), checkBackend = TRUE))
 message("TransferLearning backend preflight passed; no database was accessed.")
