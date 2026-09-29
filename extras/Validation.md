@@ -94,3 +94,17 @@ those installations. Existing system R dependencies were reused; installation of
 all dependencies on a bare production host and live Databricks extraction remain
 untested. The standalone pilot entrypoint also passed configuration and missing-
 input smoke checks without opening a database connection.
+
+## Named cohort-table inputs
+
+The pilot now uses sourceName/targetName and explicit source/target cohort table
+names without required snapshot IDs. Twenty-six focused assertions check reuse
+without writes for an existing table, generation of a missing table, predictor-
+table naming, credential-free database identity and optional snapshot validation.
+Database operations in these tests are mocked; live Databricks remains untested.
+The updated pilot configuration and behavioral backend probe pass without a
+snapshot label. End-to-end runner tests also use registries without snapshot IDs.
+
+Full `R CMD check --no-manual` passed: 0 errors, 0 warnings, 0 notes (4m 45s).
+Logs: `/tmp/transfer-cohort-table-tests.log`, `/tmp/transfer-cohort-table-check.log`,
+`/tmp/transfer-pilot-input-check.log`. The updated package installed successfully.

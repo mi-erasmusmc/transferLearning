@@ -72,3 +72,10 @@ functionFingerprint <- function(package) {
 	})
 	digest::digest(stats::setNames(definitions, names), algo = "sha256")
 }
+
+# Only non-secret data locations belong in cache keys and saved manifests.
+databaseIdentity <- function(database) {
+	fields <- c("cdmDatabaseSchema", "cohortDatabaseSchema", "cohortTable",
+		"phenotypeCohortTable", "tempEmulationSchema", "snapshotId")
+	database[intersect(fields, names(database))]
+}

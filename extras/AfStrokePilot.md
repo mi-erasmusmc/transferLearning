@@ -57,8 +57,9 @@ The frozen original definitions remain available for a later study-specific revi
    package using [Installation.md](Installation.md). The runner automatically
    checks backend behavior and records implementation fingerprints.
 2. Copy `inst/examples/afStrokePilot.R` into the study directory. Fill in the
-   source/target CDM schemas (`catalog.schema`), actual snapshot/release IDs,
-   writable cohort/temp schema and output folder at the top. The example shares
+   `sourceName` / `targetName`, source/target CDM schemas (`catalog.schema`),
+   `sourceCohortTable` / `targetCohortTable`, writable cohort/temp schema and output
+   folder at the top. Snapshot IDs are not required. The example shares
    one Databricks connection between the two CDM schemas. Supply host, HTTP path,
    token and JDBC driver directory through the indicated environment variables,
    or adapt the connection block to your site's existing authentication setup.
@@ -69,6 +70,18 @@ The frozen original definitions remain available for a later study-specific revi
    is also available if Rscript is on PATH. Do not pass this entrypoint to `extras/runExperiment.R`: it already
    calls the runner. The generic CLI remains available for configuration-only
    scripts such as `inst/examples/config.R`.
+
+The specified cohort tables contain the target/outcome cohorts. Each database's
+phenotype table defaults to its cohort table name plus `_phenotypes`; the registry
+can override this with `phenotypeCohortTable`. Names are unqualified table names;
+`cohortDatabaseSchema` supplies the catalog/schema. For each table, the runner
+checks existence: existing tables are read without recreation or regeneration,
+while missing tables are created and populated. Existing tables must already
+contain the intended complete cohorts (including the correct cohort IDs); a table's
+existence is not a content/version check. If a generation attempt is interrupted,
+inspect its tables before retrying. Use fresh table names to regenerate changed
+definitions, and a new output folder when data change. Database schemas/table
+names are recorded in cache fingerprints without connection credentials.
 
 The entrypoint performs live extraction and fitting. For an extraction-only
 feasibility check, execute its configuration section, then call

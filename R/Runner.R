@@ -3,7 +3,7 @@
 
 #' Run paired transfer-learning experiments
 #' @param settings Experiment settings.
-#' @param databaseRegistry Named runtime database settings with immutable snapshotId.
+#' @param databaseRegistry Named runtime database settings, optionally including snapshotId.
 #' @param preparedData Optional nested list indexed by database, problem, profile.
 #' Entries are cache paths or lists with raw plpData and population. When omitted,
 #' prepareExperimentData generates and extracts the cohorts.
@@ -24,7 +24,7 @@ runExperiment <- function(settings, databaseRegistry, preparedData = NULL, resum
 	fingerprintSettings <- settings
 	fingerprintSettings$outputFolder <- NULL
 	manifest <- list(settings = fingerprintSettings,
-		snapshots = lapply(databaseRegistry, `[[`, "snapshotId"), packages = packageVersions(),
+		databases = lapply(databaseRegistry, databaseIdentity), packages = packageVersions(),
 		implementation = functionFingerprint("TransferLearning"),
 		backend = functionFingerprint("PatientLevelPrediction"))
 	manifest$hash <- digest::digest(manifest, algo = "sha256")

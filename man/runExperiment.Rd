@@ -9,7 +9,7 @@ runExperiment(settings, databaseRegistry, preparedData = NULL, resume = TRUE)
 \arguments{
 \item{settings}{Experiment settings.}
 
-\item{databaseRegistry}{Named runtime database settings with immutable snapshotId.}
+\item{databaseRegistry}{Named runtime database settings, optionally including snapshotId.}
 
 \item{preparedData}{Optional nested list indexed by database, problem, profile.
 Entries are cache paths or lists with raw plpData and population. When omitted,

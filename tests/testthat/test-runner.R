@@ -10,7 +10,7 @@ test_that("end-to-end jobs are paired, restartable, and preserve input", {
 		repetitions = 1, folds = 2, minClassCount = 5)
 	settings$featureProfiles$phenotype <- list(type = "phenotype", ascertainmentReviewed = TRUE,
 		cohortDefinitionSet = data.frame(cohortId = 1, cohortName = "test"))
-	registry <- list(source = list(snapshotId = "s1"), target = list(snapshotId = "t1"))
+	registry <- list(source = list(), target = list())
 	inputs <- list(source = list(example = list(standard = source, phenotype = source)), target = list(example = list(standard = target, phenotype = target)))
 	result <- runExperiment(settings, registry, inputs)
 	expect_equal(sort(result$status$status), c(rep("completed", 10), rep("skipped", 2)), info = paste(result$status$reason, collapse = "\n"))

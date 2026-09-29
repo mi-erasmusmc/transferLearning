@@ -9,8 +9,10 @@ prepareExperimentData(settings, databaseRegistry)
 \arguments{
 \item{settings}{Experiment settings.}
 
-\item{databaseRegistry}{Named database settings. Each entry contains snapshotId,
-connectionDetails, cdmDatabaseSchema, and cohortDatabaseSchema (a writable scratch schema).}
+\item{databaseRegistry}{Named database settings. Each entry contains
+connectionDetails, cdmDatabaseSchema, and cohortDatabaseSchema. cohortTable names
+the target/outcome table; phenotypeCohortTable optionally names the predictor table
+(defaults to cohortTable plus _phenotypes). snapshotId is optional.}
 }
 \value{
 Nested list of cache directories, indexed by database, problem, and profile.
@@ -19,7 +21,11 @@ Nested list of cache directories, indexed by database, problem, and profile.
 Extract and cache data for an experiment
 }
 \details{
-Creates experiment-specific cohort tables in the supplied scratch schema.
+Reuses existing cohort tables without regenerating their contents.
+Missing tables are created and populated from the frozen definitions. When no
+cohortTable is supplied, names are generated from the extraction fingerprint.
+Existing tables must contain the intended complete cohort definitions.
 Cohort definitions must be frozen CohortGenerator definition sets. Existing
-caches are reused only under the same configuration and snapshot fingerprint.
+caches are reused only under the same database configuration and optional snapshot.
+Use a new output folder when underlying data change.
 }

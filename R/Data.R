@@ -3,12 +3,18 @@
 
 #' Extract and cache data for an experiment
 #' @param settings Experiment settings.
-#' @param databaseRegistry Named database settings. Each entry contains snapshotId,
-#' connectionDetails, cdmDatabaseSchema, and cohortDatabaseSchema (a writable scratch schema).
+#' @param databaseRegistry Named database settings. Each entry contains
+#' connectionDetails, cdmDatabaseSchema, and cohortDatabaseSchema. cohortTable names
+#' the target/outcome table; phenotypeCohortTable optionally names the predictor table
+#' (defaults to cohortTable plus _phenotypes). snapshotId is optional.
 #' @return Nested list of cache directories, indexed by database, problem, and profile.
-#' @details Creates experiment-specific cohort tables in the supplied scratch schema.
+#' @details Reuses existing cohort tables without regenerating their contents.
+#' Missing tables are created and populated from the frozen definitions. When no
+#' cohortTable is supplied, names are generated from the extraction fingerprint.
+#' Existing tables must contain the intended complete cohort definitions.
 #' Cohort definitions must be frozen CohortGenerator definition sets. Existing
-#' caches are reused only under the same configuration and snapshot fingerprint.
+#' caches are reused only under the same database configuration and optional snapshot.
+#' Use a new output folder when underlying data change.
 #' @export
 prepareExperimentData <- function(settings, databaseRegistry) {
 	validateExperiment(settings, databaseRegistry)
@@ -20,24 +26,14 @@ prepareExperimentData <- function(settings, databaseRegistry) {
 			if (is.null(problem$cohortDefinitionSet)) stop("Live extraction requires frozen problem cohortDefinitionSet")
 			for (profileId in names(settings$featureProfiles)) {
 				profile <- settings$featureProfiles[[profileId]]
-				key <- digest::digest(list(id, database$snapshotId, problem, profile, packageVersions(),
+				key <- digest::digest(list(id, databaseIdentity(database), problem, profile, packageVersions(),
 					functionFingerprint("TransferLearning")), algo = "sha256")
 				folder <- file.path(settings$outputFolder, "data", key)
 				paths[[id]][[problemId]][[profileId]] <- folder
 				if (file.exists(file.path(folder, "complete.rds"))) next
 				dir.create(folder, recursive = TRUE, showWarnings = FALSE)
-				generate <- function(definitions, suffix) {
-					tables <- CohortGenerator::getCohortTableNames(paste0("tl", substr(key, 1, 10), substr(suffix, 2, 2)))
-					CohortGenerator::createCohortTables(connectionDetails = database$connectionDetails,
-						cohortDatabaseSchema = database$cohortDatabaseSchema, cohortTableNames = tables)
-					CohortGenerator::generateCohortSet(connectionDetails = database$connectionDetails,
-						cdmDatabaseSchema = database$cdmDatabaseSchema,
-						cohortDatabaseSchema = database$cohortDatabaseSchema,
-						tempEmulationSchema = if (is.null(database$tempEmulationSchema)) database$cohortDatabaseSchema else database$tempEmulationSchema,
-						cohortTableNames = tables, cohortDefinitionSet = definitions)
-					tables$cohortTable
-				}
-				cohortTable <- generate(problem$cohortDefinitionSet, "_out")
+				cohortTable <- ensureCohortTable(database, problem$cohortDefinitionSet,
+					cohortTableName(database, key))
 				covariateSettings <- profile$covariateSettings
 				if (is.null(covariateSettings)) {
 					covariateSettings <- FeatureExtraction::createCovariateSettings(
@@ -49,7 +45,8 @@ prepareExperimentData <- function(settings, databaseRegistry) {
 						longTermStartDays = -365, endDays = -1)
 				}
 				if (profile$type == "phenotype") {
-					phenotypeTable <- generate(profile$cohortDefinitionSet, "_phen")
+					phenotypeTable <- ensureCohortTable(database, profile$cohortDefinitionSet,
+						cohortTableName(database, key, phenotype = TRUE))
 					phenotypes <- data.frame(cohortId = profile$cohortDefinitionSet$cohortId,
 						cohortName = profile$cohortDefinitionSet$cohortName)
 					covariateSettings <- list(covariateSettings,
@@ -99,4 +96,31 @@ openInput <- function(input, problem, databaseId) {
 	attr(input$plpData, "metaData") <- meta
 	attr(population, "metaData") <- meta
 	list(data = input$plpData, population = population, owned = owned)
+}
+
+cohortTableName <- function(database, key, phenotype = FALSE) {
+	if (phenotype && !is.null(database$phenotypeCohortTable)) return(database$phenotypeCohortTable)
+	if (!is.null(database$cohortTable)) {
+		return(paste0(database$cohortTable, if (phenotype) "_phenotypes" else ""))
+	}
+	paste0("tl", substr(key, 1, 10), if (phenotype) "p" else "o")
+}
+
+ensureCohortTable <- function(database, definitions, tableName) {
+	connection <- DatabaseConnector::connect(database$connectionDetails)
+	on.exit(DatabaseConnector::disconnect(connection))
+	if (DatabaseConnector::existsTable(connection, database$cohortDatabaseSchema, tableName)) {
+		ParallelLogger::logInfo("Reusing cohort table ", database$cohortDatabaseSchema, ".", tableName)
+		return(tableName)
+	}
+	tables <- CohortGenerator::getCohortTableNames(tableName)
+	CohortGenerator::createCohortTables(connection = connection,
+		cohortDatabaseSchema = database$cohortDatabaseSchema, cohortTableNames = tables,
+		incremental = TRUE)
+	CohortGenerator::generateCohortSet(connection = connection,
+		cdmDatabaseSchema = database$cdmDatabaseSchema,
+		cohortDatabaseSchema = database$cohortDatabaseSchema,
+		tempEmulationSchema = if (is.null(database$tempEmulationSchema)) database$cohortDatabaseSchema else database$tempEmulationSchema,
+		cohortTableNames = tables, cohortDefinitionSet = definitions)
+	tableName
 }

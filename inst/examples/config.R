@@ -24,7 +24,8 @@ settings <- TransferLearning::createExperimentSettings(
   featureProfiles = profiles,
   outputFolder = "experiment-results"
 )
-# Each registry entry needs snapshotId, connectionDetails, cdmDatabaseSchema,
+# Each registry entry needs connectionDetails, cdmDatabaseSchema,
 # cohortDatabaseSchema (writable experiment scratch schema), and optionally
-# tempEmulationSchema. Populate connection details from environment secrets.
+# tempEmulationSchema. Set cohortTable to reuse an existing table or generate
+# it if missing; snapshotId is optional. Populate connections from environment secrets.
 databaseRegistry <- readRDS("local-database-registry.rds")

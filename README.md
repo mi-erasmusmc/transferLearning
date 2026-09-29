@@ -27,8 +27,9 @@ Rscript --vanilla extras/runExperiment.R /path/to/study-config.R
 ```
 
 The registry maps database names to connection details, CDM and writable cohort
-scratch schemas, and immutable snapshot identifiers. The runner creates tables
-prefixed `tl` in the scratch schema. Credentials are not written to the experiment
+scratch schemas, and cohort table names. Existing cohort tables are reused; missing
+tables are generated from the frozen definitions. If names are omitted, the runner
+uses names prefixed `tl`. Snapshot labels are optional. Credentials are not written to the experiment
 manifest. Keep the registry outside version control. Prepared raw PLP data can
 also be supplied through `runExperiment(..., preparedData = ...)`; see its help.
 

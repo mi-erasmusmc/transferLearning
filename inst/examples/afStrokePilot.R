@@ -9,15 +9,17 @@ databricksHttpPath <- Sys.getenv("DATABRICKS_HTTP_PATH")
 databricksToken <- Sys.getenv("DATABRICKS_TOKEN")
 pathToDriver <- Sys.getenv("DATABASECONNECTOR_JAR_FOLDER")
 
-sourceId <- "optumEhr"
+sourceName <- "optumEhr"
 sourceCdmSchema <- ""       # e.g. catalog.optum_ehr_cdm
-sourceSnapshotId <- ""      # actual data release identifier
+sourceCohortTable <- "tl_optum_ehr_af_stroke"
 
-targetId <- "mdcr"
+targetName <- "mdcr"
 targetCdmSchema <- ""       # e.g. catalog.mdcr_cdm
-targetSnapshotId <- ""      # actual data release identifier
+targetCohortTable <- "tl_mdcr_af_stroke"
 
-cohortDatabaseSchema <- ""  # writable catalog.schema for generated cohort tables
+# Reuse named tables if present; generate them otherwise. Predictor tables use
+# the same names with _phenotypes appended. Use distinct names for the two CDMs.
+cohortDatabaseSchema <- ""  # writable catalog.schema for cohort tables
 tempEmulationSchema <- cohortDatabaseSchema
 outputFolder <- "af-stroke-pilot"  # storage on the machine running R
 
@@ -30,8 +32,8 @@ bootstrapReplicates <- 200L
 
 # ---- Construct runtime database registry ----
 requiredInputs <- c("databricksHost", "databricksHttpPath", "databricksToken",
-  "pathToDriver", "sourceCdmSchema", "sourceSnapshotId", "targetCdmSchema",
-  "targetSnapshotId", "cohortDatabaseSchema", "tempEmulationSchema")
+  "pathToDriver", "sourceName", "targetName", "sourceCdmSchema", "targetCdmSchema",
+  "sourceCohortTable", "targetCohortTable", "cohortDatabaseSchema", "tempEmulationSchema")
 missingInputs <- requiredInputs[!vapply(mget(requiredInputs), function(value) {
   is.character(value) && length(value) == 1L && !is.na(value) && nzchar(trimws(value))
 }, logical(1))]
@@ -51,14 +53,14 @@ connectionDetails <- DatabaseConnector::createConnectionDetails(
 )
 databaseRegistry <- setNames(list(
   list(connectionDetails = connectionDetails,
-    cdmDatabaseSchema = sourceCdmSchema, snapshotId = sourceSnapshotId,
+    cdmDatabaseSchema = sourceCdmSchema, cohortTable = sourceCohortTable,
     cohortDatabaseSchema = cohortDatabaseSchema,
     tempEmulationSchema = tempEmulationSchema),
   list(connectionDetails = connectionDetails,
-    cdmDatabaseSchema = targetCdmSchema, snapshotId = targetSnapshotId,
+    cdmDatabaseSchema = targetCdmSchema, cohortTable = targetCohortTable,
     cohortDatabaseSchema = cohortDatabaseSchema,
     tempEmulationSchema = tempEmulationSchema)
-), c(sourceId, targetId))
+), c(sourceName, targetName))
 
 # ---- Frozen problem and feature definitions bundled with the package ----
 pilotPath <- system.file("pilot", package = "TransferLearning", mustWork = TRUE)
@@ -83,7 +85,7 @@ settings <- TransferLearning::createExperimentSettings(
       riskWindowStart = 1, riskWindowEnd = 365,
       startAnchor = "cohort start", endAnchor = "cohort start",
       restrictTarToCohortEnd = FALSE))),
-  pairs = data.frame(sourceId = sourceId, targetId = targetId),
+  pairs = data.frame(sourceId = sourceName, targetId = targetName),
   featureProfiles = list(phenotypesDemographics = list(type = "phenotype",
     cohortDefinitionSet = phenotypes, ascertainmentReviewed = TRUE,
     phenotypeLibraryVersion = "3.37.0", antibioticGroupIds = 1201:1214,

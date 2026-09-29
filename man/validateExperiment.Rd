@@ -9,7 +9,7 @@ validateExperiment(settings, databaseRegistry)
 \arguments{
 \item{settings}{Experiment settings.}
 
-\item{databaseRegistry}{Named runtime database settings; each entry requires snapshotId.}
+\item{databaseRegistry}{Named runtime database settings. snapshotId is optional.}
 }
 \value{
 A data frame describing the job grid, invisibly.

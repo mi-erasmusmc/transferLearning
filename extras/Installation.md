@@ -27,7 +27,8 @@ needed. The runner automatically checks required PLP behavior before running,
 since the PLP version alone does not identify its implementation.
 
 Copy `inst/examples/afStrokePilot.R` into your study directory and fill in the
-site inputs at the top. In R/RStudio:
+site inputs at the top: database names, CDM schemas, cohort table names, writable
+scratch schema, connection details and output folder. In R/RStudio:
 
 ```r
 setwd("C:/your/study")  # change this path

@@ -91,7 +91,7 @@ createExperimentSettings <- function(problems, pairs, featureProfiles,
 
 #' Validate experiment requirements
 #' @param settings Experiment settings.
-#' @param databaseRegistry Named runtime database settings; each entry requires snapshotId.
+#' @param databaseRegistry Named runtime database settings. snapshotId is optional.
 #' @return A data frame describing the job grid, invisibly.
 #' @export
 validateExperiment <- function(settings, databaseRegistry) {
@@ -99,9 +99,16 @@ validateExperiment <- function(settings, databaseRegistry) {
 	ids <- unique(c(as.character(settings$pairs$sourceId), as.character(settings$pairs$targetId)))
 	if (!all(ids %in% names(databaseRegistry))) stop("Missing database registry entries")
 	for (id in ids) {
+		for (field in c("cohortTable", "phenotypeCohortTable")) {
+			table <- databaseRegistry[[id]][[field]]
+			if (!is.null(table) && (!is.character(table) || length(table) != 1 || is.na(table) ||
+					!grepl("^[A-Za-z][A-Za-z0-9_]*$", table))) {
+				stop(field, " must be an unqualified table name containing letters, digits or underscores")
+			}
+		}
 		snapshot <- databaseRegistry[[id]]$snapshotId
-		if (!is.character(snapshot) || length(snapshot) != 1 || is.na(snapshot) || !nzchar(snapshot)) {
-			stop("Each database needs an explicit nonempty snapshotId")
+		if (!is.null(snapshot) && (!is.character(snapshot) || length(snapshot) != 1 || is.na(snapshot) || !nzchar(snapshot))) {
+			stop("snapshotId must be a nonempty string when supplied")
 		}
 	}
 	checkPlpBackend()

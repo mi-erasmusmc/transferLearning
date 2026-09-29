@@ -13,7 +13,10 @@ patients. Source models and source development populations stay fixed while the
 target training budget changes.
 
 Freeze the target and outcome cohort definitions, population settings, observation
-windows, database snapshot identifiers, and phenotype definitions before running.
+windows, database locations, and phenotype definitions before running.
+Snapshot identifiers are optional. Named cohort tables are reused when present
+and generated when absent. Existing tables must contain the intended complete
+cohorts; use new tables for revised definitions and new output folders for changed data.
 The first implementation supports one index per patient and binary outcomes.
 A phenotype's complete definition must use information available at prediction
 time; checking its cohort start date alone is insufficient.

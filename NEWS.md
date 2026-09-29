@@ -13,3 +13,6 @@
   fixed holdouts, and event-axis plots; retain optional patient budgets.
 * Prepare the AF–stroke pilot with frozen protocol cohorts and earlier phenotype
   definitions, merging 14 antibiotic groups into one exposure-start feature.
+* Simplify pilot inputs to source/target names and cohort tables, with optional
+  snapshot labels. Reuse existing tables and generate missing ones; include data
+  locations in extraction-cache and experiment-manifest fingerprints.
