@@ -8,7 +8,7 @@ repository's upstream patch. Those changes are not yet published upstream.
 ## Installation and execution
 
 Clone the `plp-cyclops-pilot` branch and follow the portable
-[installation instructions](extras/Installation.md). They install dependencies,
+[Windows/RStudio installation instructions](extras/Installation.md). They install dependencies,
 apply the bundled PLP correctness patch to a pinned upstream commit, install both
 packages and run a synthetic backend preflight. `R CMD INSTALL .` alone does not
 install dependencies or correct PLP.

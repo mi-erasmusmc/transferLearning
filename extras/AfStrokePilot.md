@@ -66,8 +66,9 @@ The frozen original definitions remain available for a later study-specific revi
    or adapt the connection block to your site's existing authentication setup.
    No site-configuration RDS file is needed. Bundled phenotype definitions still
    load from the package's frozen RDS artifact.
-3. Run `Rscript --vanilla afStrokePilot.R` directly, or source it in the study R
-   session. Do not pass this entrypoint to `extras/runExperiment.R`: it already
+3. In Windows R/RStudio, set the working directory to the study folder and run
+   `source("afStrokePilot.R")`. From a terminal, `Rscript --vanilla afStrokePilot.R`
+   is also available if Rscript is on PATH. Do not pass this entrypoint to `extras/runExperiment.R`: it already
    calls the runner. The generic CLI remains available for configuration-only
    scripts such as `inst/examples/config.R`.
 
