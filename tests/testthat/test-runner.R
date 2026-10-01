@@ -22,6 +22,25 @@ test_that("end-to-end jobs are paired, restartable, and preserve input", {
 	expect_equal(nrow(result$differences), 8)
 	expect_s3_class(plotTransferEffects(result), "ggplot")
 	expect_equal(dplyr::collect(target$plpData$covariateData$covariates), before)
+	# Recreate the live-extraction cache layout using the original manifest. The
+	# diagnostic must locate these caches without calling extraction/current keys.
+	manifest <- readRDS(file.path(folder, "manifest.rds"))
+	for (profileId in names(settings$featureProfiles)) {
+		cacheKey <- digest::digest(list("target", manifest$databases$target,
+			settings$problems$example, settings$featureProfiles[[profileId]],
+			manifest$packages, manifest$implementation), algo = "sha256")
+		cache <- file.path(folder, "data", cacheKey)
+		dir.create(cache, recursive = TRUE)
+		data <- target$plpData; class(data) <- "plpData"
+		PatientLevelPrediction::savePlpData(data, file.path(cache, "plpData"))
+		saveRDS(target$population, file.path(cache, "population.rds"))
+	}
+	diagnostics <- summarizeTransferDiagnostics(folder)
+	expect_equal(nrow(diagnostics$ablations), 8)
+	expect_true(all(diagnostics$verification$maxPredictionReconstructionError < 1e-6))
+	expect_equal(dplyr::collect(target$plpData$covariateData$covariates), before)
+	expect_false(any(c("rowId", "subjectId", "covariateId", "reason") %in% unlist(lapply(diagnostics, names))))
+	expect_equal(diagnostics$ablations$aurocChangeFromFull[diagnostics$ablations$ablation == "full"], c(0, 0))
 	resumed <- runExperiment(settings, registry, inputs)
 	expect_equal(result, resumed)
 	settings$variances <- .2

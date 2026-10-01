@@ -115,3 +115,54 @@ training fold, matching PLP develop. Overlap is recalculated for the final refit
 Frozen-source/recalibration comparators keep the original source feature set.
 Dropped IDs are saved per tuning fold and for the final fit; see
 [UpstreamRequirements.md](UpstreamRequirements.md).
+
+## Post-run transfer diagnostics
+
+After installing the updated package and restarting R, run this separately from
+`afStrokePilot.R` (do not rerun the experiment):
+
+```r
+outputFolder <- "C:/path/to/completed/af-stroke-pilot"
+TransferLearning::summarizeTransferDiagnostics(outputFolder)
+```
+
+This reads the original manifest, saved source/transfer models, splits, predictions,
+and cached target data. It uses the original cache fingerprints, so installing an
+updated runner does not invalidate this read-only analysis. No database credentials,
+connection, extraction or refitting is needed. Keep the complete experiment folder
+in production. If the experiment used `preparedData` rather than the package cache,
+supply the same prepared-data list to this function.
+
+Only the CSVs in `outputFolder/transfer-diagnostics/` are intended as aggregate
+exports; review them under local disclosure rules, including small counts:
+
+- `coefficients.csv`: counts of eligible, nonzero, changed, zeroed and sign-reversed
+  coefficients, separately for source-selected and new target predictors. Magnitudes
+  are absolute coefficients/changes multiplied by target-training predictor SD,
+  including implicit zeros. Medians include all eligible predictors in each group.
+- `contributions.csv`: means and SDs of held-out log-odds contributions from retained
+  source coefficients, adjustments to source-selected predictors, new target
+  coefficients, total corrections and the final predictor (excluding the intercept).
+- `correlations.csv`: correlations between these components; constant components
+  have missing correlations. These are not independent contributions or percentages.
+- `ablations.csv`: AUROC, log loss and Brier score for the reloaded full model and
+  models with new-target, source-adjustment or all correction components removed.
+  All use the final target intercept and no refitting. Positive AUROC change is an
+  improvement over the full model; positive log-loss/Brier change is deterioration.
+  Removing all corrections is not the frozen-source or intercept-recalibrated model.
+- `verification.csv`: training/test counts, selected variance, boundary selection,
+  source feature dropping, reconstruction checks, and drift versus original saved
+  predictions. This does not certify convergence. Material drift should be resolved
+  before interpreting ablations as representing the original fitted model.
+- `provenance.csv`: original manifest hash, original/current backend fingerprints,
+  current runner fingerprint, PLP version and coefficient classification tolerance.
+
+The default tolerance is `1e-6` in target-normalized coefficient units. Classification
+of target nonzero coefficients and changes can depend on this tolerance and PLP's
+JSON rounding. Source selection uses exactly nonzero saved source coefficients. The
+continuous prediction decomposition retains all coefficient values, including small
+ones. The function checks its reconstructed probabilities against PLP prediction
+from the loaded model and stops if they differ by more than `1e-6`. Drift from the
+original in-memory model is reported separately; the known serialization precision
+issue is not repaired by these diagnostics. No covariate identities, individual
+coefficients, patient IDs or individual predictions are written to these CSVs.
