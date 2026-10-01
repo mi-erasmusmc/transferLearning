@@ -15,7 +15,8 @@ runExperiment(settings, databaseRegistry, preparedData = NULL, resume = TRUE)
 Entries are cache paths or lists with raw plpData and population. When omitted,
 prepareExperimentData generates and extracts the cohorts.}
 
-\item{resume}{Reuse completed jobs under an identical manifest.}
+\item{resume}{Reuse compatible completed work. Additional training budgets and
+repetitions are allowed; other scientific settings must remain unchanged.}
 }
 \value{
 Collected status, metrics, and paired bootstrap intervals.

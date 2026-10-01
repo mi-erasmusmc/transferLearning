@@ -18,6 +18,11 @@
 #' @export
 prepareExperimentData <- function(settings, databaseRegistry) {
 	validateExperiment(settings, databaseRegistry)
+	prepareExperimentDataFromManifest(settings, databaseRegistry,
+		list(packages = packageVersions(), implementation = functionFingerprint("TransferLearning")))
+}
+
+prepareExperimentDataFromManifest <- function(settings, databaseRegistry, cacheManifest) {
 	paths <- list()
 	for (id in unique(c(settings$pairs$sourceId, settings$pairs$targetId))) {
 		database <- databaseRegistry[[id]]
@@ -26,8 +31,8 @@ prepareExperimentData <- function(settings, databaseRegistry) {
 			if (is.null(problem$cohortDefinitionSet)) stop("Live extraction requires frozen problem cohortDefinitionSet")
 			for (profileId in names(settings$featureProfiles)) {
 				profile <- settings$featureProfiles[[profileId]]
-				key <- digest::digest(list(id, databaseIdentity(database), problem, profile, packageVersions(),
-					functionFingerprint("TransferLearning")), algo = "sha256")
+				key <- digest::digest(list(id, databaseIdentity(database), problem, profile, cacheManifest$packages,
+					cacheManifest$implementation), algo = "sha256")
 				folder <- file.path(settings$outputFolder, "data", key)
 				paths[[id]][[problemId]][[profileId]] <- folder
 				if (file.exists(file.path(folder, "complete.rds"))) next

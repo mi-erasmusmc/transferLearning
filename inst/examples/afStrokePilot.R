@@ -24,6 +24,10 @@ tempEmulationSchema <- cohortDatabaseSchema
 outputFolder <- "af-stroke-pilot"  # storage on the machine running R
 
 # ---- Pilot settings ----
+# To extend an existing run, keep outputFolder and other settings unchanged.
+# Add event counts and/or increase repetitions; completed work is reused.
+# Example extension: c(25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000)
+# with repetitions <- 5L.
 trainingEvents <- c(25, 50, 100, 150, 200, 500, 1000)
 repetitions <- 3L
 folds <- 3L

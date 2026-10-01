@@ -7,7 +7,8 @@
 #' @param preparedData Optional nested list indexed by database, problem, profile.
 #' Entries are cache paths or lists with raw plpData and population. When omitted,
 #' prepareExperimentData generates and extracts the cohorts.
-#' @param resume Reuse completed jobs under an identical manifest.
+#' @param resume Reuse compatible completed work. Additional training budgets and
+#' repetitions are allowed; other scientific settings must remain unchanged.
 #' @return Collected status, metrics, and paired bootstrap intervals.
 #' @details Runs serially, with bounded Cyclops threads. Stores patient-level
 #' artifacts locally. A failed method is recorded and does not stop other jobs.
@@ -26,14 +27,25 @@ runExperiment <- function(settings, databaseRegistry, preparedData = NULL, resum
 	manifest <- list(settings = fingerprintSettings,
 		databases = lapply(databaseRegistry, databaseIdentity), packages = packageVersions(),
 		implementation = functionFingerprint("TransferLearning"),
-		backend = functionFingerprint("PatientLevelPrediction"))
+		backend = functionFingerprint("PatientLevelPrediction"),
+		reuseContract = list(version = 1L, science = experimentScienceFingerprint()))
 	manifest$hash <- digest::digest(manifest, algo = "sha256")
 	manifestPath <- file.path(folder, "manifest.rds")
-	if (file.exists(manifestPath) && !identical(readRDS(manifestPath)$hash, manifest$hash)) {
-		stop("Manifest changed; use a new output folder")
+	cacheManifest <- manifest
+	if (file.exists(manifestPath)) {
+		if (!resume) stop("Existing experiment: use resume=TRUE or a new output folder")
+		cacheManifest <- readRDS(manifestPath)
+		activePath <- file.path(folder, "resume-manifest.rds")
+		previous <- if (file.exists(activePath)) readRDS(activePath) else cacheManifest
+		assertExperimentExtension(previous, manifest)
+		ParallelLogger::logInfo("Reusing compatible experiment; only missing work will run")
 	}
-	atomicSave(manifest, manifestPath)
-	if (is.null(preparedData)) preparedData <- prepareExperimentData(settings, databaseRegistry)
+	jobPaths <- indexExperimentJobs(folder)
+	if (!file.exists(manifestPath)) atomicSave(manifest, manifestPath)
+	# Preserve the extraction/source provenance; record each extension separately.
+	atomicSave(manifest, file.path(folder, "runs", paste0(manifest$hash, ".rds")))
+	atomicSave(manifest, file.path(folder, "resume-manifest.rds"))
+	if (is.null(preparedData)) preparedData <- cachedExperimentInputs(settings, databaseRegistry, cacheManifest)
 	inputs <- list()
 	on.exit(for (input in inputs) if (input$owned) Andromeda::close(input$data$covariateData), add = TRUE)
 	getInput <- function(id, problemId, profileId) {
@@ -53,7 +65,7 @@ runExperiment <- function(settings, databaseRegistry, preparedData = NULL, resum
 				if (input$owned) Andromeda::close(input$data$covariateData)
 				stop("Populations differ across feature profiles or cached inputs")
 			}
-			atomicSave(saved, path)
+			if (!file.exists(path)) atomicSave(saved, path)
 			inputs[[key]] <<- input
 		}
 		inputs[[key]]
@@ -84,16 +96,16 @@ runExperiment <- function(settings, databaseRegistry, preparedData = NULL, resum
 	}
 	for (i in seq_len(nrow(grid))) {
 		job <- grid[i, , drop = FALSE]
-		key <- digest::digest(job, algo = "xxhash64")
-		path <- file.path(folder, "jobs", key)
+		identity <- experimentJobKey(job)
+		path <- jobPaths[[identity]]
+		if (is.null(path)) path <- file.path(folder, "jobs", identity)
+		key <- basename(path)
 		resultPath <- file.path(path, "result.rds")
-		if (resume && file.exists(resultPath)) {
-			old <- readRDS(resultPath)
-			if (!any(old$status$status == "failed")) next
-		}
+		old <- if (file.exists(resultPath)) readRDS(resultPath) else NULL
+		if (!is.null(old) && jobIsComplete(old, settings$methods)) next
 		ParallelLogger::logInfo("Job ", i, "/", nrow(grid), ": ", job$sourceId, " -> ", job$targetId,
 			" / ", job$problemId, " / ", job$profileId, " / ", job$budgetUnit, "=", job$trainingBudget)
-		warnings <- character()
+		warnings <- character(); reused <- character()
 		result <- withCallingHandlers(tryCatch({
 			input <- getInput(job$targetId, job$problemId, job$profileId)
 			development <- input$population[input$partition$development, , drop = FALSE]
@@ -111,9 +123,28 @@ runExperiment <- function(settings, databaseRegistry, preparedData = NULL, resum
 				} else {
 					folds <- makeFolds(train, settings$learningCurve$folds,
 						seedFor(settings$learningCurve$seed, job$targetId, job$problemId, job$repetition, job$trainingBudget, "folds"))
-					atomicSave(list(rowIds = train$rowId, folds = folds, testRowIds = test$rowId), file.path(path, "split.rds"))
+					splitPath <- file.path(path, "split.rds")
+					split <- list(rowIds = train$rowId, folds = folds, testRowIds = test$rowId)
+					if (file.exists(splitPath) && !identical(readRDS(splitPath), split)) stop("Saved job split differs")
+					if (!file.exists(splitPath)) atomicSave(split, splitPath)
 					predictions <- list(); statuses <- list(); metrics <- list(); intervals <- list()
+					# Recover successful methods from a partially failed job without refitting.
+					predictionPath <- file.path(path, "predictions.rds")
+					if (!is.null(old) && file.exists(predictionPath)) {
+						prior <- readRDS(predictionPath)
+						if (!identical(lapply(prior$population, function(x) x), lapply(test, function(x) x))) stop("Saved predictions use a different test population")
+						for (method in settings$methods) {
+							success <- old$status[old$status$method == method & old$status$status == "completed", , drop = FALSE]
+							metric <- old$metrics[old$metrics$method == method, , drop = FALSE]
+							p <- prior$predictions[[method]]
+							if (nrow(success) == 1 && NROW(metric) == 1 && length(p) == nrow(test) && all(is.finite(p))) {
+								predictions[[method]] <- p; statuses[[method]] <- success; metrics[[method]] <- metric
+							}
+						}
+					}
+					reused <- names(predictions)
 					for (method in settings$methods) {
+						if (method %in% reused) next
 						outcome <- tryCatch({
 							if (method == "targetOnly" || method == "priorCoefs") {
 								source <- if (method == "priorCoefs") getSource(job$sourceId, job$problemId, job$profileId) else NULL
@@ -143,6 +174,11 @@ runExperiment <- function(settings, databaseRegistry, preparedData = NULL, resum
 					}
 					for (method in setdiff(names(predictions), "targetOnly")) {
 						if (!is.null(predictions$targetOnly) && settings$bootstrapReplicates > 0) {
+							priorInterval <- if (is.null(old$intervals)) NULL else old$intervals[old$intervals$method == method, , drop = FALSE]
+							if (all(c("targetOnly", method) %in% reused) && NROW(priorInterval) == 2) {
+								intervals[[method]] <- priorInterval
+								next
+							}
 							ci <- pairedIntervals(as.integer(test$outcomeCount > 0), predictions$targetOnly,
 								predictions[[method]], settings$bootstrapReplicates,
 								seedFor(settings$learningCurve$seed, key, "bootstrap"))
@@ -157,7 +193,8 @@ runExperiment <- function(settings, databaseRegistry, preparedData = NULL, resum
 			warnings <<- c(warnings, conditionMessage(w))
 			invokeRestart("muffleWarning")
 		})
-		result$warnings <- unique(warnings)
+		result$warnings <- unique(c(old$warnings, warnings))
+		result$provenance <- list(runManifestHash = manifest$hash, reusedMethods = reused)
 		atomicSave(result, resultPath)
 	}
 	results <- collectExperimentResults(folder)

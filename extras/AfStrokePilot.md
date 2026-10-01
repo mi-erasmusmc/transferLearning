@@ -199,3 +199,45 @@ independent convergence assessment. A dense model with good held-out loss at an
 interior variance is compatible with plentiful source data and a curated feature
 set; density alone does not establish that every predictor matters. The script
 exports neither patient-level data nor individual coefficients or predictor IDs.
+
+## Extending a completed learning curve
+
+Update/reinstall TransferLearning and restart R. In your existing copy of
+`afStrokePilot.R`, keep the same `outputFolder` and site inputs, then change:
+
+```r
+trainingEvents <- c(25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000)
+repetitions <- 5L
+```
+
+Run the original script again. `runExperiment()` resumes by default. Existing
+extraction caches, source models, completed target jobs, and fixed test partitions
+are reused. With complete caches, cohort generation and feature extraction are
+not called. Only new budget/repetition combinations and failed or missing methods
+are run. Budgets exceeding the available development events are recorded as
+skipped. Successful methods in a partially failed job are reused when their saved
+predictions and metrics are available. Keep the entire local output folder.
+
+The original seven budgets and three repetitions become twelve budgets and five
+repetitions: 39 additional jobs, if all budgets are feasible. Repetitions 1–3 keep
+their original samples; added budgets use nested samples within each repetition.
+All repetitions share the original held-out test population. Their variability
+therefore describes training-sample variability, not uncertainty across databases
+or independent test sets.
+
+Only additive budget/repetition changes are supported in the same folder. Changes
+to features, cohorts, preprocessing, tuning, methods, seed, bootstrap settings,
+database identity, dependencies or fitting implementation require a new folder.
+Reuse assumes the underlying database contents have not changed; use a new folder
+for a refreshed dataset. Credentials can change without invalidating saved work.
+
+The runner recognizes the earlier pilot builds with merged PLP behavior and
+migrates their job identifiers without moving or rewriting completed jobs. Unknown
+older implementations are rejected. `manifest.rds` retains the original cache and
+source provenance; `resume-manifest.rds` records the latest requested grid and
+`runs/` retains the manifests for individual extensions. Summary CSVs are refreshed
+to include all jobs. Diagnostics can be rerun after the extension.
+
+New transfer fits load the saved source model. PLP's existing JSON coefficient
+precision limitation still applies; this change does not provide lossless model
+serialization or guarantee bitwise identity to one uninterrupted run.
