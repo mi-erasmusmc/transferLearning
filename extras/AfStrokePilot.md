@@ -241,3 +241,83 @@ to include all jobs. Diagnostics can be rerun after the extension.
 New transfer fits load the saved source model. PLP's existing JSON coefficient
 precision limitation still applies; this change does not provide lossless model
 serialization or guarantee bitwise identity to one uninterrupted run.
+
+## Comparing native PLP/Cyclops tuning with the saved experiment
+
+After the experiment finishes, pull the repository update and source the standalone
+script. It uses the installed TransferLearning package; no reinstall is needed for
+this script-only addition. From the repository directory in R/Positron:
+
+```r
+source("extras/comparePlpAutoCv.R")
+comparison <- comparePlpAutoCv(
+  outputFolder = outputFolder,
+  trainingEvents = c(25, 200, 1000),
+  repetitions = 1:3
+)
+```
+
+This initial selection compares nine saved jobs, each with target-only and transfer
+models under two variants (36 native model-development calls). Each call includes
+Cyclops automatic tuning, its final fit, and PLP CV prediction refits. Omit the
+`trainingEvents` and `repetitions` filters to compare all completed jobs. Rerunning
+the same call skips completed comparisons; failed comparisons are retried. The
+script rejects a running experiment lock and a different PLP backend fingerprint.
+No database connection, extraction, or source-model refitting occurs.
+
+The two variants are:
+
+- `matchedPreprocessing`: retain the pilot's normalization, `minFraction = 0`, and
+  `removeRedundancy = FALSE`, but estimate preprocessing once using the complete
+  training sample and let PLP/Cyclops tune internally.
+- `plpDefaults`: use `createPreprocessSettings()` defaults, including frequency and
+  redundancy filtering, followed by native PLP/Cyclops tuning.
+
+Both use the original features (including age), exact outer training/test patients,
+original fold count, seed and thread count, and a starting variance of 0.01. The
+source model is the original saved model, held fixed to isolate changes in target
+fitting. Source coefficients are matched by ID and converted once to each prepared
+training sample's units; this is necessary for age and has no effect on binary
+predictors with unit normalization in both models. This is a comparison of target
+fitting workflows, not a complete rerun of source development using PLP defaults.
+
+Cyclops automatic tuning constructs its own seeded folds. The saved fold labels
+are supplied to PLP for its CV prediction refits, but do not force the automatic
+variance search to use the runner's exact inner assignments. The comparison
+therefore changes tuning search, inner assignments and preprocessing scope;
+it does not isolate the search algorithm alone. PLP defaults also change feature
+filtering. All evaluation uses the original untouched outer test patients.
+The `lowerLimit`/`upperLimit` settings apply to grid search, not auto-search.
+
+Results are under `outputFolder/plp-auto-cv/aggregate/`:
+
+- `comparisons.csv`: reference and native variances, nonzero predictor counts,
+  rescaled/dropped source counts, AUC, AUPRC, log loss, Brier score, calibration
+  diagnostics, prediction differences and elapsed time. Every `difference_*` is
+  native minus reference: positive AUC/AUPRC and negative loss/Brier differences
+  indicate improvement. Prediction correlation is undefined for constant predictions.
+- `provenance.csv` and `packages.csv`: source strategy, backend/script fingerprints,
+  starting variance and dependency versions.
+
+Only these aggregate CSVs are intended for review/sharing, subject to local count
+rules. No patient IDs, individual predictions, coefficients or covariate IDs are
+exported. Errors are printed locally; failed rows contain only a status. The
+`local/` subfolder holds resume records. Original experiment artifacts are read-only.
+
+Reference predictions are the original saved predictions. Separate reference-reload
+drift columns quantify PLP JSON precision effects; the native source is also loaded
+from its saved representation. Compare predictive performance and prediction
+agreement, not just selected variance: several variances can produce the same
+model. Agreement is empirical, not a claim of mathematical or statistical equivalence.
+Calibration fields are diagnostic measurements, not additional recalibrated models.
+
+To check sensitivity to the automatic search's starting point, use a separate folder:
+
+```r
+comparePlpAutoCv(
+  outputFolder,
+  comparisonFolder = file.path(outputFolder, "plp-auto-cv-start-1"),
+  trainingEvents = c(25, 200, 1000), repetitions = 1L,
+  variants = "matchedPreprocessing", startingVariance = 1
+)
+```
