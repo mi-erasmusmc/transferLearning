@@ -166,3 +166,36 @@ from the loaded model and stops if they differ by more than `1e-6`. Drift from t
 original in-memory model is reported separately; the known serialization precision
 issue is not repaired by these diagnostics. No covariate identities, individual
 coefficients, patient IDs or individual predictions are written to these CSVs.
+
+### Check whether the source model is genuinely dense
+
+From the updated repository clone, run in a fresh R session:
+
+```r
+source("extras/sourceModelDiagnostics.R")
+sourceModelDiagnostics("C:/path/to/completed/af-stroke-pilot")
+```
+
+No package reinstall is required for this standalone script if the pilot's PLP
+and other dependencies are already installed. It requires the original source
+cache and saved source model/tuning files. It never connects to Databricks or refits.
+Share only the reviewed aggregate CSVs in `source-diagnostics/`:
+
+- `summary.csv`: training events and predictor counts; selected/fitted variance;
+  stored fit status; whether selection reaches the strongest/weakest tested penalty.
+  Boundary checks use a numeric tolerance, alongside the original recorded flag.
+- `tuning.csv`: weighted validation log loss at every candidate variance, failed-fold
+  counts, fold loss range and differences from the selected candidate. Smaller
+  variance means stronger regularization. Fold loss ranges are not confidence intervals.
+- `thresholds.csv` and `quantiles.csv`: distributions of absolute coefficients in
+  normalized units and per source-training predictor SD (implicit zeros included).
+  Values above thresholds are counts, not lists of predictor identities. Thresholds
+  are descriptive, not significance tests or universally meaningful effect cutoffs.
+- `provenance.csv`: original manifest/backend identifiers and script fingerprint.
+
+The intercept is excluded from counts and magnitudes. Saved coefficients reflect
+PLP JSON precision. `savedStatusOK` reports the stored Cyclops status; it is not an
+independent convergence assessment. A dense model with good held-out loss at an
+interior variance is compatible with plentiful source data and a curated feature
+set; density alone does not establish that every predictor matters. The script
+exports neither patient-level data nor individual coefficients or predictor IDs.
